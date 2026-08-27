@@ -1,0 +1,42 @@
+name: Preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+concurrency: { group: preview-${{ github.event.number }}, cancel-in-progress: false }
+
+jobs:
+  publish:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - uses: bffless/publish-workflow@v1
+        with:
+          alias: hello-pr-${{ github.event.number }}
+          name: Hello (PR #${{ github.event.number }})
+          description: 'M2 test implementation: hello (echo, slow job + poll, fail-on-purpose) and an interactive island round-trip; two islands (pick-line, line-viewer); analyze.'
+          repository: bffless/workflow
+          rules: .bffless/proxy-rules/hello
+          api-url: ${{ vars.BFFLESS_URL }}
+          api-key: ${{ secrets.BFFLESS_WORKFLOW_API_KEY }}
+          target-url: https://hello-pr-${{ github.event.number }}.j5s.dev
+
+  teardown:
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bffless/publish-workflow@v1
+        with:
+          mode: teardown
+          alias: hello-pr-${{ github.event.number }}
+          repository: bffless/workflow
+          api-url: ${{ vars.BFFLESS_URL }}
+          api-key: ${{ secrets.BFFLESS_WORKFLOW_API_KEY }}
