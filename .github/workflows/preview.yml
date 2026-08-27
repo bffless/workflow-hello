@@ -22,16 +22,12 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '20', cache: pnpm }
       - run: pnpm install --frozen-lockfile
-      # The bundle itself must say which implementation it is (`--impl
-      # hello-pr-<N>`), not just the alias it's uploaded to: publish-workflow's
-      # own `workflow index` re-runs downstream and is the thing that would
-      # normally overwrite this — the assert step below exists for when it
-      # silently doesn't (see scripts/build.mjs's workflow-lint CLI note).
-      - run: pnpm build -- --impl hello-pr-${{ github.event.number }} --name 'Hello (PR #${{ github.event.number }})'
+      # The bundle must say which implementation it is (needs @bffless/workflow-lint >= 1.0.1).
+      - run: "pnpm build -- --impl hello-pr-${{ github.event.number }} --name 'Hello (PR #${{ github.event.number }})'"
       - uses: bffless/publish-workflow@v1
         with:
           alias: hello-pr-${{ github.event.number }}
-          name: Hello (PR #${{ github.event.number }})
+          name: "Hello (PR #${{ github.event.number }})"
           description: 'M2 test implementation: hello (echo, slow job + poll, fail-on-purpose) and an interactive island round-trip; two islands (pick-line, line-viewer); analyze.'
           repository: bffless/workflow
           rules: .bffless/proxy-rules/hello

@@ -26,10 +26,7 @@ jobs:
           api-url: ${{ vars.BFFLESS_URL }}
           api-key: ${{ secrets.BFFLESS_WORKFLOW_API_KEY }}
           target-url: https://hello.j5s.dev
-      # A green build is not proof the right bundle was published: if
-      # `workflow index` ever no-ops (the workflow-lint CLI bug documented in
-      # scripts/build.mjs is one way that happens), the uploaded index.json
-      # could still say `impl: hello` from a stale/default build. Fail loud.
+      # A green build doesn't prove the right bundle was published — assert it (needs @bffless/workflow-lint >= 1.0.1).
       - name: Assert the published bundle's impl matches the alias
         env:
           EXPECTED_IMPL: hello
