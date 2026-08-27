@@ -85,6 +85,21 @@ app.ontoolinput = ({ arguments: args }) => {
       return button
     }),
   )
+
+  // `hostContext` is only known after `connect()`, so this is checked here —
+  // at the end of `ontoolinput`, once `lines` is populated — rather than once
+  // up front.
+  const bffless = (app.getHostContext() as { bffless?: { headless?: boolean } } | undefined)?.bffless
+  if (bffless?.headless) {
+    // Headless run (spec 07 / plan Decision 7): pick the first line the way a person would.
+    const first = lines.querySelector<HTMLButtonElement>('button')
+    if (first) {
+      attempt(async () => {
+        await preview(first.textContent ?? '', 0, first)
+        await submit({ line: first.textContent ?? '', index: 0 })
+      })
+    }
+  }
 }
 
 /** A line was clicked: shout it through the `echo` pipeline, then annotate the step. */
