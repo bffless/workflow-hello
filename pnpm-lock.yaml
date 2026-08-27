@@ -19,8 +19,8 @@ importers:
         version: 4.4.3
     devDependencies:
       '@bffless/workflow-lint':
-        specifier: ^1.0.0
-        version: 1.0.0
+        specifier: ^1.0.1
+        version: 1.0.1
       '@bffless/workflow-script':
         specifier: ^1.0.0
         version: 1.0.0
@@ -42,8 +42,8 @@ importers:
 
 packages:
 
-  '@bffless/workflow-lint@1.0.0':
-    resolution: {integrity: sha512-T93ffQ9DecKUmlzbB5dtCOBQMq2xBwcsdePfvLhkSco9Fmko6mL9lUtB+1a4I/qjZ9mN9uEMnrk9vLKaiz4hsg==}
+  '@bffless/workflow-lint@1.0.1':
+    resolution: {integrity: sha512-NeuD7Xwsv2G8lKLB5eAUbQIa5cBhxeXczwNMxSTUWFs/hfb0w7eb+i5c2/El4A+nHSHubJkk5MTdX/OJs9BlBw==}
     engines: {node: '>=20'}
     hasBin: true
 
@@ -893,7 +893,7 @@ packages:
 
 snapshots:
 
-  '@bffless/workflow-lint@1.0.0':
+  '@bffless/workflow-lint@1.0.1':
     dependencies:
       ajv: 8.20.0
       yaml: 2.9.0

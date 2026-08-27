@@ -8,7 +8,7 @@
 // build + script copy); the index.json/landing-page half that script wrote by
 // hand is replaced here by `workflow index` (M3 Phase 1) — this repo is that
 // tool's first customer outside the monorepo (06).
-import { mkdirSync, copyFileSync, readdirSync, rmSync, mkdtempSync, realpathSync } from 'node:fs'
+import { mkdirSync, copyFileSync, readdirSync, rmSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -22,21 +22,6 @@ const repoDir = join(dirname(fileURLToPath(import.meta.url)), '..')
  * `package.json`.
  */
 const bin = (name) => join(repoDir, 'node_modules', '.bin', name)
-
-/**
- * `@bffless/workflow-lint@1.0.0`'s `dist/cli.js` only runs its CLI when
- * `import.meta.url === pathToFileURL(process.argv[1]).href`. Under pnpm's
- * node_modules layout `node_modules/@bffless/workflow-lint` is a symlink into
- * `.pnpm/…`; running it via `node_modules/.bin/workflow` (the shim `bin()`
- * above would resolve) leaves `argv[1]` at the symlinked path while
- * `import.meta.url` resolves to the realpath, so the check never matches —
- * the process exits 0 having done *nothing*, no output at all. Filed
- * upstream; worked around here by resolving the package's realpath first and
- * invoking `node <realpath>/dist/cli.js` directly, which is what the shim
- * would have done had the check not silently failed. No network involved —
- * still the repo's own pinned devDependency, matching R23's intent.
- */
-const workflowCli = join(realpathSync(join(repoDir, 'node_modules', '@bffless', 'workflow-lint')), 'dist', 'cli.js')
 
 const args = process.argv.slice(2)
 const checkOnly = args.includes('--check')
@@ -124,10 +109,11 @@ try {
   // the bundle's index.json (which also lists the islands/scripts already
   // staged above) and copies the YAMLs verbatim.
   // ---------------------------------------------------------------------
+  // Requires @bffless/workflow-lint >= 1.0.1: 1.0.0's dist/cli.js silently
+  // no-op'd when reached through pnpm's node_modules/.bin shim (fixed upstream).
   execFileSync(
-    process.execPath,
+    bin('workflow'),
     [
-      workflowCli,
       'index',
       '.bffless/workflows',
       '--out',
