@@ -40,8 +40,28 @@ const workflowCli = join(realpathSync(join(repoDir, 'node_modules', '@bffless', 
 
 const args = process.argv.slice(2)
 const checkOnly = args.includes('--check')
-const outIdx = args.indexOf('--out')
-const explicitOut = outIdx > -1 ? args[outIdx + 1] : null
+
+/**
+ * A flag's value, validated: a flag with no following value, or one whose
+ * "value" is itself another flag, is a usage error — never silently `undefined`
+ * or the next flag's name.
+ */
+function flagValue(name, fallback) {
+  const idx = args.indexOf(name)
+  if (idx === -1) return fallback
+  const value = args[idx + 1]
+  if (value === undefined || value.startsWith('--')) {
+    throw new Error(`build.mjs: ${name} needs a value`)
+  }
+  return value
+}
+
+const explicitOut = flagValue('--out', null)
+// The preview workflow (a PR alias, e.g. `hello-pr-7`) builds the same source
+// under a different alias/display name — the published `impl` must say which
+// one, since the harness reads it back to know what it just deployed.
+const impl = flagValue('--impl', 'hello')
+const name = flagValue('--name', 'Hello')
 
 // `--check` is a "does it build" gate and nothing more: the whole build runs
 // into a throwaway temp dir, which is discarded when it's done.
@@ -61,13 +81,14 @@ try {
     .map((entry) => entry.name)
     .sort()
 
+  // Type-checked *before* anything under `out` is touched: a type error in an
+  // island or the script leaves whatever bundle was built last time intact,
+  // rather than a half-wiped `dist/`.
+  execFileSync(bin('tsc'), ['-p', 'tsconfig.json'], { cwd: repoDir, stdio: 'inherit' })
+
   const islandDir = join(out, 'islands')
   rmSync(islandDir, { recursive: true, force: true })
   mkdirSync(islandDir, { recursive: true })
-
-  // Type-checked here, by the thing that publishes the bundle: a broken
-  // island or script fails the build, before anything is uploaded.
-  execFileSync(bin('tsc'), ['-p', 'tsconfig.json'], { cwd: repoDir, stdio: 'inherit' })
 
   for (const island of ISLANDS) {
     execFileSync(bin('vite'), ['build', '-c', 'vite.islands.config.ts'], {
@@ -112,9 +133,9 @@ try {
       '--out',
       out,
       '--impl',
-      'hello',
+      impl,
       '--name',
-      'Hello',
+      name,
       '--description',
       'M2 test implementation: hello (echo, slow job + poll, fail-on-purpose) and an interactive island round-trip; two islands (pick-line, line-viewer); analyze.',
       '--rules',

@@ -26,3 +26,20 @@ jobs:
           api-url: ${{ vars.BFFLESS_URL }}
           api-key: ${{ secrets.BFFLESS_WORKFLOW_API_KEY }}
           target-url: https://hello.j5s.dev
+      # A green build is not proof the right bundle was published: if
+      # `workflow index` ever no-ops (the workflow-lint CLI bug documented in
+      # scripts/build.mjs is one way that happens), the uploaded index.json
+      # could still say `impl: hello` from a stale/default build. Fail loud.
+      - name: Assert the published bundle's impl matches the alias
+        env:
+          EXPECTED_IMPL: hello
+        run: |
+          node -e "
+            const fs = require('node:fs');
+            const idx = JSON.parse(fs.readFileSync('dist/.bffless/workflows/index.json', 'utf8'));
+            const expected = process.env.EXPECTED_IMPL;
+            if (idx.impl !== expected) {
+              console.error('::error::published bundle impl ' + JSON.stringify(idx.impl) + ' != alias ' + JSON.stringify(expected));
+              process.exit(1);
+            }
+          "

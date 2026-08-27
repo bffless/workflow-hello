@@ -7,11 +7,18 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 const repoDir = join(dirname(fileURLToPath(import.meta.url)), '..')
 
-let outDir: string | undefined
+const outDirs: string[] = []
+
+function tmpOut(): string {
+  const dir = mkdtempSync(join(tmpdir(), 'workflow-hello-build-test-'))
+  outDirs.push(dir)
+  return dir
+}
 
 afterEach(() => {
-  if (outDir) rmSync(outDir, { recursive: true, force: true })
-  outDir = undefined
+  while (outDirs.length > 0) {
+    rmSync(outDirs.pop()!, { recursive: true, force: true })
+  }
 })
 
 describe('scripts/build.mjs', () => {
@@ -20,13 +27,16 @@ describe('scripts/build.mjs', () => {
   it(
     'builds a self-contained bundle',
     () => {
-      outDir = mkdtempSync(join(tmpdir(), 'workflow-hello-build-test-'))
+      const outDir = tmpOut()
 
       execFileSync('node', ['scripts/build.mjs', '--out', outDir], { cwd: repoDir, stdio: 'inherit' })
 
       const index = JSON.parse(readFileSync(join(outDir, '.bffless/workflows/index.json'), 'utf8'))
       expect(index.impl).toBe('hello')
       expect(index.workflows).toHaveLength(2)
+      // The payoff of `headless: auto` / `headless: { mode: skip, ... }`: a
+      // workflow with no interactive step that would fail fast headless.
+      expect(index.workflows.every((w: { headlessSafe: boolean }) => w.headlessSafe)).toBe(true)
 
       const islandFiles = ['pick-line.html', 'line-viewer.html']
       for (const file of islandFiles) {
@@ -43,6 +53,29 @@ describe('scripts/build.mjs', () => {
 
       const landing = readFileSync(join(outDir, 'index.html'), 'utf8')
       expect(landing.length).toBeGreaterThan(0)
+    },
+    120_000,
+  )
+
+  // preview.yml builds the same source under a per-PR alias (`--impl
+  // hello-pr-<N> --name 'Hello (PR #<N>)'`) — the published index.json must
+  // say which implementation it is, since the harness reads it back. This is
+  // exactly the failure mode the workflow-lint CLI bug (see build.mjs) would
+  // have hidden: a green build whose bundle still claims `impl: hello`.
+  it(
+    'takes --impl/--name and publishes them, not the default',
+    () => {
+      const outDir = tmpOut()
+
+      execFileSync(
+        'node',
+        ['scripts/build.mjs', '--out', outDir, '--impl', 'hello-pr-7', '--name', 'Hello (PR #7)'],
+        { cwd: repoDir, stdio: 'inherit' },
+      )
+
+      const index = JSON.parse(readFileSync(join(outDir, '.bffless/workflows/index.json'), 'utf8'))
+      expect(index.impl).toBe('hello-pr-7')
+      expect(index.name).toBe('Hello (PR #7)')
     },
     120_000,
   )

@@ -63,6 +63,9 @@ function attempt(work: () => Promise<void>): void {
 const app = new App({ name: 'pick-line', version: '1.0.0' })
 
 let picked: { line: string; index: number } | null = null
+// A claim-once latch: `ontoolinput` can be re-delivered (a reconnect, a retry)
+// and must never auto-submit a second time.
+let autoPicked = false
 
 app.ontoolinput = ({ arguments: args }) => {
   const input = (args ?? {}) as { lines?: unknown; words?: unknown }
@@ -90,10 +93,11 @@ app.ontoolinput = ({ arguments: args }) => {
   // at the end of `ontoolinput`, once `lines` is populated — rather than once
   // up front.
   const bffless = (app.getHostContext() as { bffless?: { headless?: boolean } } | undefined)?.bffless
-  if (bffless?.headless) {
+  if (bffless?.headless && !autoPicked) {
     // Headless run (spec 07 / plan Decision 7): pick the first line the way a person would.
     const first = lines.querySelector<HTMLButtonElement>('button')
     if (first) {
+      autoPicked = true
       attempt(async () => {
         await preview(first.textContent ?? '', 0, first)
         await submit({ line: first.textContent ?? '', index: 0 })

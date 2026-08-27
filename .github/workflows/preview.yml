@@ -4,7 +4,13 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, closed]
 
-concurrency: { group: preview-${{ github.event.number }}, cancel-in-progress: false }
+concurrency:
+  # Flow-style `{ group: preview-${{ ... }} }` is genuinely ambiguous YAML (a
+  # `{{` inside a flow mapping) — every other dynamic `concurrency:` in the
+  # monorepo (preview-studio.yml, preview-reader.yml) uses block style for the
+  # same reason.
+  group: preview-${{ github.event.number }}
+  cancel-in-progress: false
 
 jobs:
   publish:
@@ -16,7 +22,12 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '20', cache: pnpm }
       - run: pnpm install --frozen-lockfile
-      - run: pnpm build
+      # The bundle itself must say which implementation it is (`--impl
+      # hello-pr-<N>`), not just the alias it's uploaded to: publish-workflow's
+      # own `workflow index` re-runs downstream and is the thing that would
+      # normally overwrite this — the assert step below exists for when it
+      # silently doesn't (see scripts/build.mjs's workflow-lint CLI note).
+      - run: pnpm build -- --impl hello-pr-${{ github.event.number }} --name 'Hello (PR #${{ github.event.number }})'
       - uses: bffless/publish-workflow@v1
         with:
           alias: hello-pr-${{ github.event.number }}
@@ -27,6 +38,19 @@ jobs:
           api-url: ${{ vars.BFFLESS_URL }}
           api-key: ${{ secrets.BFFLESS_WORKFLOW_API_KEY }}
           target-url: https://hello-pr-${{ github.event.number }}.j5s.dev
+      - name: Assert the published bundle's impl matches the alias
+        env:
+          EXPECTED_IMPL: hello-pr-${{ github.event.number }}
+        run: |
+          node -e "
+            const fs = require('node:fs');
+            const idx = JSON.parse(fs.readFileSync('dist/.bffless/workflows/index.json', 'utf8'));
+            const expected = process.env.EXPECTED_IMPL;
+            if (idx.impl !== expected) {
+              console.error('::error::published bundle impl ' + JSON.stringify(idx.impl) + ' != alias ' + JSON.stringify(expected));
+              process.exit(1);
+            }
+          "
 
   teardown:
     if: github.event.action == 'closed'
