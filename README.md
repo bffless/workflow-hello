@@ -71,17 +71,19 @@ handles everything else:
 2. **An alias + domain for the harness itself** (`workflow`), with `/w/hello/*`
    forwarding to the `hello` alias (`bffless/publish-workflow` generates the
    forwarder rule; the alias/domain pointing at the harness build is separate).
-3. **The `hello` alias's domain (`hello.j5s.dev`) needs its path set to
-   `/dist`, not `/`.** `bffless/upload-artifact` keeps the uploaded directory
-   name as the bundle's root, so the deployment's actual root is `dist/`
-   (`dist/index.html`, `dist/islands/*.html`,
-   `dist/.bffless/workflows/index.json`, ...) — a domain path of `/` (or
-   empty) 400s (double slash) or 404s. With the path set to `/dist`, the
-   domain serves `dist/`'s contents at its own root: `/islands/pick-line.html`
-   on the domain resolves to `dist/islands/pick-line.html` in the deployment,
-   and likewise for every other bundle path. Every per-PR preview alias
-   (`hello-pr-<N>`, see `preview.yml`) needs the same `/dist` path on its
-   domain — it's the same bundle shape, just a different alias.
+3. **A domain for the `hello` alias (`hello.j5s.dev`) is optional — cosmetic,
+   not required.** `bffless/publish-workflow` >= v1.2.0 makes `target-url`
+   optional: the generated `/w/hello/*` forwarder then targets the CE
+   backend's alias route in-process instead of a public domain, so the
+   harness reaches the bundle with no domain for `hello` at all. Previews
+   need no domain either — browse a preview directly through the harness at
+   `https://workflow.<domain>/w/hello-pr-<N>/…`. If you *do* add a domain for
+   `hello` (or a preview alias) anyway, its path still needs to be set to
+   `/dist`, not `/` — `bffless/upload-artifact` keeps the uploaded directory
+   name as the bundle's root, so a domain path of `/` (or empty) 400s (double
+   slash) or 404s. With the path set to `/dist`, the domain serves `dist/`'s
+   contents at its own root: `/islands/pick-line.html` on the domain
+   resolves to `dist/islands/pick-line.html` in the deployment.
 4. Repo variable **`BFFLESS_URL`** (the BFFless instance base URL, e.g.
    `https://admin.j5s.dev`) and secret **`BFFLESS_WORKFLOW_API_KEY`** (an API
    key scoped to the harness project).
