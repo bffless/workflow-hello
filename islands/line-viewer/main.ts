@@ -55,20 +55,31 @@ function asImageRef(value: unknown): ImageFileRef | null {
 
 const app = new App({ name: 'line-viewer', version: '1.0.0' })
 
+// A monotonically increasing delivery counter: re-delivery is part of the
+// contract (a changed value, a reconnect), and `workflow.sign` is a network
+// round trip, so an older delivery's response can land after a newer one
+// already started rendering. Each call to `renderImage` captures the
+// generation it was started for and checks it again after the `await` —
+// a stale result is discarded rather than clobbering what's already shown.
+let generation = 0
+
 app.ontoolinput = ({ arguments: args }) => {
   const { value } = (args ?? {}) as { value?: unknown }
+  const current = ++generation
 
-  // A fresh delivery (the viewer can receive `tool-input` more than once, e.g.
-  // a changed value) starts from a clean slate rather than layering onto
+  // A fresh delivery starts from a clean slate rather than layering onto
   // whatever the previous value left rendered.
   imageEl.hidden = true
   imageEl.removeAttribute('src')
+  imageEl.alt = ''
   errorEl.textContent = ''
 
   const imageRef = asImageRef(value)
   if (imageRef) {
     valueEl.hidden = true
-    renderImage(imageRef).catch((error: unknown) => {
+    valueEl.textContent = ''
+    renderImage(imageRef, current).catch((error: unknown) => {
+      if (current !== generation) return // superseded by a later delivery
       errorEl.textContent = failureText(error)
     })
     return
@@ -82,20 +93,28 @@ app.ontoolinput = ({ arguments: args }) => {
 
 /**
  * Exchange the ref's `path` for a presigned URL over the host bridge and
- * render it. Every failure — a tool `isError` or a rejected promise (the
- * bridge gone, an old harness without the tool) — lands in the visible error
- * slot, never a silent blank image (mirrors `pick-line`'s `attempt`).
+ * render it. Every failure — a tool `isError`, a rejected promise (the
+ * bridge gone, an old harness without the tool), or a success with no usable
+ * URL — lands in the visible error slot, never a silent blank image (mirrors
+ * `pick-line`'s `attempt`). Discards the result outright if a later
+ * `tool-input` has already superseded this one.
  */
-async function renderImage(ref: ImageFileRef): Promise<void> {
+async function renderImage(ref: ImageFileRef, expected: number): Promise<void> {
   const result: ToolResultish = await app.callServerTool({
     name: 'workflow.sign',
     arguments: { path: ref.path },
   })
+  if (expected !== generation) return // superseded while the call was in flight
+
   if (result.isError) {
     errorEl.textContent = resultText(result)
     return
   }
-  const url = String(result.structuredContent?.url ?? resultText(result))
+  const url = result.structuredContent?.url
+  if (typeof url !== 'string' || url === '') {
+    errorEl.textContent = resultText(result) || 'workflow.sign returned no url'
+    return
+  }
   imageEl.src = url
   imageEl.alt = ref.name ?? ref.path
   imageEl.hidden = false
