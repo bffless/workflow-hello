@@ -47,6 +47,17 @@ describe('scripts/build.mjs', () => {
         expect(html).not.toMatch(/<script[^>]*\ssrc=/i)
       }
 
+      // Task 10 (`workflow.sign`): the built line-viewer bundle carries the
+      // image-vs-error testids the harness e2e reads, and the copied workflow
+      // still declares the `poster_view` output the viewer is bound to — proof
+      // the wiring between the two survives a real build, not just the source.
+      const viewerHtml = readFileSync(join(outDir, 'islands', 'line-viewer.html'), 'utf8')
+      expect(viewerHtml).toContain('data-testid="viewer-image"')
+      expect(viewerHtml).toContain('data-testid="island-sign-error"')
+
+      const interactiveYaml = readFileSync(join(outDir, '.bffless/workflows/interactive.workflow.yaml'), 'utf8')
+      expect(interactiveYaml).toContain('poster_view')
+
       const builtScript = readFileSync(join(outDir, 'scripts', 'poster-card.js'))
       const sourceScript = readFileSync(join(repoDir, 'scripts', 'poster-card.js'))
       expect(builtScript.equals(sourceScript)).toBe(true)
