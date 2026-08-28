@@ -33,6 +33,15 @@ tsconfig.json                 type-checks islands/ + scripts/ (excludes build.mj
 `index.json` (what the harness reads), `islands/<name>.html`, `scripts/*.js`,
 and a one-line `index.html` landing page so the alias is never a bare 404.
 
+`line-viewer` also proves `workflow.sign` (M3 Phase 3a, Task 10): the
+`card` job's `poster_view` output feeds it the same poster File ref as
+`review`'s form, and when the value looks like an image (`contentType`
+starting `image/`) the island exchanges its `path` for a presigned URL over
+the host bridge — a sandboxed frame has no cookie, so an `<img>` can't hit the
+deployment directly — and renders it. On a harness older than Phase 3a (no
+`workflow.sign` tool), the call comes back as a tool error and the island
+shows it in `island-sign-error` instead of the image.
+
 ## The relative-path convention
 
 A pipeline step names its endpoint relative to the implementation:
