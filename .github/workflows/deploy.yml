@@ -25,7 +25,6 @@ jobs:
           repository: bffless/workflow
           api-url: ${{ vars.BFFLESS_URL }}
           api-key: ${{ secrets.BFFLESS_WORKFLOW_API_KEY }}
-          target-url: https://hello.j5s.dev
       # A green build doesn't prove the right bundle was published — assert it (needs @bffless/workflow-lint >= 1.0.1).
       - name: Assert the published bundle's impl matches the alias
         env:

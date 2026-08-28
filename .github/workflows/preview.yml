@@ -33,7 +33,6 @@ jobs:
           rules: .bffless/proxy-rules/hello
           api-url: ${{ vars.BFFLESS_URL }}
           api-key: ${{ secrets.BFFLESS_WORKFLOW_API_KEY }}
-          target-url: https://hello-pr-${{ github.event.number }}.j5s.dev
       - name: Assert the published bundle's impl matches the alias
         env:
           EXPECTED_IMPL: hello-pr-${{ github.event.number }}
