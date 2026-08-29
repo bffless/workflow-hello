@@ -92,19 +92,33 @@ app.ontoolinput = ({ arguments: args }) => {
   // `hostContext` is only known after `connect()`, so this is checked here —
   // at the end of `ontoolinput`, once `lines` is populated — rather than once
   // up front.
-  const bffless = (app.getHostContext() as { bffless?: { headless?: boolean } } | undefined)?.bffless
-  if (bffless?.headless && !autoPicked) {
-    // Headless run (spec 07 / plan Decision 7): pick the first line the way a person would.
-    const first = lines.querySelector<HTMLButtonElement>('button')
-    if (first) {
-      autoPicked = true
-      attempt(async () => {
-        await preview(first.textContent ?? '', 0, first)
-        await submit({ line: first.textContent ?? '', index: 0 })
-      })
-    }
-  }
+  autoPickIfHeadless()
 }
+
+/**
+ * The self-driving path (spec 07): on a headless run — or when a person presses
+ * the harness's per-step **Accept** (04), which arrives later as a
+ * `host-context-changed` carrying `bffless.headless: true` — pick the first line
+ * the way a person would. Checked from both `ontoolinput` (the flag was set
+ * before the mount) and `onhostcontextchanged` (it flipped after), so whichever
+ * of "lines populated" and "flag set" happens last is the one that fires it;
+ * the claim-once latch keeps the two from submitting twice.
+ */
+function autoPickIfHeadless(): void {
+  const bffless = (app.getHostContext() as { bffless?: { headless?: boolean } } | undefined)?.bffless
+  if (!bffless?.headless || autoPicked) return
+  const first = lines.querySelector<HTMLButtonElement>('button')
+  if (!first) return
+  autoPicked = true
+  attempt(async () => {
+    await preview(first.textContent ?? '', 0, first)
+    await submit({ line: first.textContent ?? '', index: 0 })
+  })
+}
+
+// The SDK merges the diff into `getHostContext()` before dispatching, so the
+// same check works for a flag that flips after the mount (Accept).
+app.onhostcontextchanged = () => autoPickIfHeadless()
 
 /** A line was clicked: shout it through the `echo` pipeline, then annotate the step. */
 async function preview(line: string, index: number, button: HTMLButtonElement): Promise<void> {
