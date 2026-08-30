@@ -17,7 +17,9 @@ function escapeText(value) {
 
 /** @type {import('@bffless/workflow-script').ScriptModule['default']} */
 export default async function run(ctx) {
-  ctx.log('drawing')
+  // Decision 4 (apps M3): a sandboxed Worker has an opaque origin. Logged so a live
+  // walk can read it off the script log without devtools.
+  ctx.log(`drawing origin=${String(self.origin)}`)
 
   const line = String(ctx.inputs.line ?? '')
   const counts = Array.isArray(ctx.inputs.counts) ? ctx.inputs.counts : []
