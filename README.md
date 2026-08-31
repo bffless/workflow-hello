@@ -1,3 +1,5 @@
+> **Moved to [bffless/workflow-implementations](https://github.com/bffless/workflow-implementations)/`hello/` — this repo is an archive.**
+
 # workflow-hello
 
 The `hello` implementation for the [BFFless Workflow harness](https://github.com/bffless/workflow):
